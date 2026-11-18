@@ -1,0 +1,1829 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title></title>
+<script src="company.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --brand: #1a1a1a;
+  --skill: #1a3c5e;
+  --stance: #2e6b4f;
+  --accent: #c0392b;
+  --bg: #f7f7f7;
+  --white: #fff;
+  --border: #ddd;
+  --text: #1a1a1a;
+  --muted: #888;
+}
+
+body {
+  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+  background: var(--bg); color: var(--text);
+  font-size: 14px; line-height: 1.75;
+  min-height: 100vh;
+}
+
+/* ─── ヘッダー ─── */
+.app-header {
+  background: var(--brand); color: #fff;
+  padding: 16px 24px; position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.app-header h1 { font-size: 15px; font-weight: 700; }
+.app-header .step-indicator { font-size: 11px; color: #aaa; }
+
+/* ─── プログレスバー ─── */
+.progress-bar { height: 4px; background: #ddd; }
+.progress-fill { height: 100%; background: var(--brand); transition: width 0.3s; }
+
+/* ─── メインコンテナ ─── */
+.container { max-width: 680px; margin: 0 auto; padding: 32px 20px 64px; }
+
+/* ─── ステップ ─── */
+.step { display: none; }
+.step.active { display: block; }
+
+/* ─── カード ─── */
+.card {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: 2px; padding: 24px; margin-bottom: 16px;
+}
+.card-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+.card-desc { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+
+/* ─── フォーム ─── */
+.form-group { margin-bottom: 16px; }
+label.field-label { font-size: 12px; font-weight: 700; display: block; margin-bottom: 6px; }
+label.field-label span { color: var(--accent); }
+input[type="text"], select {
+  width: 100%; border: 1px solid var(--border); border-radius: 2px;
+  padding: 10px 12px; font-size: 14px; font-family: inherit;
+  background: #fff;
+}
+input[type="text"]:focus, select:focus {
+  outline: none; border-color: var(--brand);
+}
+
+/* ─── 設問カード ─── */
+.q-header {
+  display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px;
+}
+.q-num {
+  min-width: 40px; height: 40px; background: var(--brand); color: #fff;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; flex-shrink: 0;
+}
+.q-cap {
+  font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 1px;
+  color: #fff; white-space: nowrap;
+}
+.q-cap.skill { background: var(--skill); }
+.q-cap.stance { background: var(--stance); }
+.q-text { font-size: 15px; font-weight: 700; line-height: 1.5; margin-top: 4px; }
+
+/* ラジオ */
+.radio-group {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 8px; margin-top: 16px;
+}
+.radio-opt { position: relative; }
+.radio-opt input { position: absolute; opacity: 0; }
+.radio-opt label {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 10px 4px; border: 2px solid var(--border); border-radius: 2px;
+  cursor: pointer; text-align: center; transition: all 0.15s;
+  font-size: 11px; color: var(--muted);
+}
+.radio-opt label .score { font-size: 22px; font-weight: 700; color: var(--brand); line-height: 1.2; }
+.radio-opt input:checked + label {
+  border-color: var(--brand); background: var(--brand); color: #fff;
+}
+.radio-opt input:checked + label .score { color: #fff; }
+
+/* ─── 設問ナビ ─── */
+.q-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+.q-counter { font-size: 12px; color: var(--muted); }
+
+/* ─── ボタン ─── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 12px 24px; font-size: 14px; font-weight: 700;
+  border: none; border-radius: 2px; cursor: pointer;
+  font-family: inherit; transition: opacity 0.15s;
+}
+.btn:hover { opacity: 0.85; }
+.btn-primary { background: var(--brand); color: #fff; }
+.btn-secondary { background: #eee; color: var(--text); }
+.btn-accent { background: var(--accent); color: #fff; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ─── 結果 ─── */
+.result-summary {
+  display: flex; margin-bottom: 20px;
+}
+.rs-item { border: 1px solid var(--border); padding: 10px 12px; background: var(--white); }
+.rs-item .rs-lbl { font-size: 10px; color: var(--muted); }
+.rs-item .rs-val { font-size: 20px; font-weight: 700; }
+
+.result-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 16px; }
+.result-table th, .result-table td { border: 1px solid var(--border); padding: 8px 10px; vertical-align: middle; }
+.result-table th { background: var(--brand); color: #fff; font-size: 11px; text-align: center; }
+.result-table td.cap-name { font-weight: 700; }
+.result-table td.score-cell { text-align: center; font-weight: 700; font-size: 15px; }
+.result-table td.exp-cell { text-align: center; color: #555; }
+.result-table td.gap-cell { text-align: center; font-weight: 700; }
+.result-table td.judge-cell { text-align: center; font-weight: 700; }
+.result-table tr.diff-highlight td { background: #f2f2f2; }
+.result-table td.diff-cell { text-align: center; }
+.result-table td.diff-cell .diff-num { font-weight: 700; font-size: 14px; }
+.result-table td.diff-cell .diff-label { display: block; font-size: 10px; color: var(--muted); font-weight: 400; margin-top: 2px; }
+.compare-note { font-size: 11px; color: var(--muted); margin: 0 0 8px; }
+
+.j-exc { color: #1b5e20; }
+.j-ok  { color: #1565c0; }
+.j-grow { color: #e65100; }
+.j-focus { color: #b71c1c; }
+
+.skill-tag { font-size: 9px; font-weight: 700; padding: 1px 5px; color: #fff; border-radius: 1px; }
+.tag-skill { background: var(--skill); }
+.tag-stance { background: var(--stance); }
+
+.chart-wrap { background: var(--white); border: 1px solid var(--border); padding: 20px; margin-bottom: 16px; }
+.chart-wrap h3 { font-size: 13px; font-weight: 700; margin-bottom: 12px; }
+.radar-box { position: relative; width: 100%; height: 400px; margin: 0 auto; }
+/* 凡例（グラフの上・線の見本つき） */
+.radar-legend { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px 22px; font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+.radar-legend .lg-self { color: #1a3c5e; }
+.radar-legend .lg-manager { color: #c0392b; }
+.radar-legend .lg-gap { color: #8a6d00; font-size: 12px; font-weight: normal; }
+.radar-legend .lg-line { display: inline-block; width: 28px; height: 0; vertical-align: middle; margin-right: 6px; }
+.radar-legend .lg-self .lg-line { border-top: 3px solid #1a3c5e; }
+.radar-legend .lg-manager .lg-line { border-top: 3px dashed #c0392b; }
+.radar-legend .lg-box { display: inline-block; width: 14px; height: 14px; background: #fde68a; vertical-align: middle; margin-right: 6px; }
+
+/* コメント欄 */
+.comment-area {
+  background: var(--white); border: 1px solid var(--border);
+  padding: 16px; margin-bottom: 16px;
+}
+.comment-area label { font-size: 12px; font-weight: 700; display: block; margin-bottom: 8px; }
+.comment-box {
+  width: 100%; min-height: 80px; border: 1px solid var(--border);
+  padding: 10px; font-size: 13px; font-family: inherit;
+  border-radius: 2px; resize: vertical;
+}
+.comment-box:focus { outline: none; border-color: var(--brand); }
+.q-hint { display: block; font-weight: normal; font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* 個人目標 */
+.goal-field { margin-bottom: 14px; }
+.goal-field:last-child { margin-bottom: 0; }
+.goal-field .goal-cap { font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+.goal-field .goal-cap .skill-tag { margin-right: 6px; }
+.goal-box {
+  width: 100%; min-height: 60px; border: 1px solid var(--border);
+  padding: 10px; font-size: 13px; font-family: inherit;
+  border-radius: 2px; resize: vertical;
+}
+.goal-box:focus { outline: none; border-color: var(--brand); }
+
+/* 分析テキスト */
+.analysis-box {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;
+}
+.analysis-item { border: 1px solid var(--border); padding: 14px; background: var(--white); }
+.analysis-item h4 { font-size: 12px; font-weight: 700; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 4px; }
+.analysis-item p { font-size: 12px; color: #333; line-height: 1.7; }
+.analysis-box.compare { grid-template-columns: 1fr; }
+.analysis-item p.one-line { white-space: nowrap; }
+.compare-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.compare-col { border-left: 3px solid; padding: 4px 0 4px 10px; }
+.compare-col-manager { border-color: #c0392b; }
+.compare-col-self { border-color: #1a3c5e; }
+.compare-col-label { font-size: 10px; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
+.compare-col-manager .compare-col-label { color: #c0392b; }
+.compare-col-self .compare-col-label { color: #1a3c5e; }
+.compare-col p { font-size: 12px; color: #333; line-height: 1.6; }
+
+/* GAS送信ステータス */
+.send-status { font-size: 12px; margin-top: 8px; min-height: 20px; }
+.send-status.ok { color: #1b5e20; }
+.send-status.err { color: #b71c1c; }
+
+/* ─── フォームエラー ─── */
+.field-error {
+  font-size: 12px; color: var(--accent); font-weight: 700;
+  margin: -8px 0 16px; padding: 8px 12px;
+  background: #fdecea; border-left: 3px solid var(--accent);
+}
+
+/* ─── モバイル調整 ─── */
+@media (max-width: 480px) {
+  .analysis-box { grid-template-columns: 1fr; }
+  .chart-wrap { padding: 12px 6px; }
+  .analysis-item p.one-line { white-space: normal; }
+}
+
+/* ─── 印刷 ─── */
+@media print {
+  body { background: #fff; }
+  .app-header, .progress-bar, .btn, .q-nav, #step1, #step2, #step3-nav, .send-area { display: none !important; }
+  .autosave-hint, #sendStatus, .no-print { display: none !important; }
+  /* 「本人に渡す用」で印刷するときは、上長のメモだけを外す */
+  body.print-for-self .manager-only { display: none !important; }
+  .comment-box, .goal-box { border: none !important; padding: 0 !important; resize: none !important; min-height: 0 !important; overflow: visible !important; }
+  .step { display: block !important; }
+  #step1, #step2 { display: none !important; }
+  #step3 { display: block !important; }
+  .container { padding: 0; max-width: none; }
+
+  /* 欄の途中でページが割れて次ページに数行だけはみ出るのを防ぐ（箱ごと次ページへ送る） */
+  .chart-wrap, .card, .comment-area, .analysis-item, #selfInputDisplay {
+    page-break-inside: avoid; break-inside: avoid;
+  }
+
+  /* 余白・チャートを詰めて、裏表1枚（2ページ）に収まりやすくする */
+  .chart-wrap { margin-bottom: 8px; padding: 10px; }
+  .radar-box { height: 300px !important; max-width: 560px !important; margin: 0 auto !important; }
+  .result-table { margin-bottom: 8px; }
+  .result-table th, .result-table td { padding: 4px 8px; }
+  .analysis-box { margin-bottom: 8px; }
+  .analysis-item { padding: 8px; }
+  .comment-area { margin-bottom: 8px; padding: 10px; }
+  #resultSummary { margin-bottom: 8px; }
+
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  @page { size: A4 portrait; margin: 10mm 14mm; }
+}
+[hidden] { display: none !important; }
+.demo-band { background:#fff8e6; color:#6b5420; padding:8px 16px; text-align:center; font-size:12px; }
+.demo-band button { background:none; border:0; text-decoration:underline; cursor:pointer; }
+.demo-flow { display:flex; gap:8px; margin-bottom:20px; }
+.demo-flow div { flex:1; border:1px solid var(--border); padding:10px; font-size:11px; }
+.demo-flow b { display:block; }
+.demo-open { margin:10px 0 0; padding:8px 12px; cursor:pointer; }
+@media(max-width:520px) { .demo-flow { flex-direction:column; } }
+@media print { .demo-band, .demo-flow, .demo-open { display:none !important; } }
+</style>
+</head>
+<body>
+<div id="demoBand" class="demo-band" hidden>デモ版です。記録はこのブラウザ内だけに保存されます。<button onclick="clearDemoRecords()">デモの記録を消す</button></div>
+
+<header class="app-header">
+  <h1 id="appTitle"></h1>
+  <span class="step-indicator" id="stepLabel">STEP 1 / 3</span>
+</header>
+<div class="progress-bar">
+  <div class="progress-fill" id="progressFill" style="width:0%"></div>
+</div>
+
+<div class="container">
+
+  <!-- ─── STEP 1: 基本情報 ─── -->
+  <div class="step active" id="step1">
+    <div class="card">
+      <div class="card-title">基本情報の入力</div>
+      <div class="card-desc">氏名と所属を入力してください。回答は記録されます。</div>
+      <div id="demoFlow" class="demo-flow" hidden></div>
+      <div id="managerCautionBox" style="display:none;margin-bottom:16px;padding:12px 16px;background:#fdecea;border-left:3px solid var(--accent);font-size:12px;color:#555;font-weight:700;"></div>
+
+      <div class="form-group">
+        <label class="field-label" for="inputName">氏名 <span>*</span></label>
+        <input type="text" id="inputName" placeholder="">
+      </div>
+      <div class="form-group">
+        <label class="field-label" for="inputDept">所属 <span>*</span></label>
+        <input type="text" id="inputDept" placeholder="">
+      </div>
+
+      <div class="form-group" id="gradeGroup" style="display:none;"><label class="field-label" for="inputGrade"></label><select id="inputGrade"></select></div>
+      <div id="step1Error" class="field-error" style="display:none;"></div>
+
+      <div id="selfNoteBox" style="margin-top:8px;padding:12px 16px;background:#f9f9f9;border-left:3px solid #1a1a1a;font-size:12px;color:#555;">
+        
+      </div>
+
+      <div style="margin-top:20px;text-align:right;">
+        <button class="btn btn-primary" onclick="goStep2()">診断を始める →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── STEP 2: 設問 ─── -->
+  <div class="step" id="step2">
+    <div class="card" id="questionCard">
+      <!-- JS で描画 -->
+    </div>
+    <div class="q-nav">
+      <button class="btn btn-secondary" onclick="prevQ()">← 前へ</button>
+      <span class="q-counter" id="qCounter"></span>
+      <button class="btn btn-primary" id="nextBtn" onclick="nextQ()" style="visibility:hidden;">次へ →</button>
+    </div>
+  </div>
+
+  <!-- ─── STEP 3: 結果 ─── -->
+  <div class="step" id="step3">
+    <div id="resultHeader" class="card">
+      <div class="card-title" id="resultName"></div>
+      <div style="font-size:12px;color:var(--muted);" id="resultMeta"></div>
+    </div>
+
+    <!-- スコアサマリー -->
+    <div class="result-summary" id="resultSummary"></div>
+
+    <!-- レーダーチャート -->
+    <div class="chart-wrap">
+      <h3>強み・伸びしろ レーダーチャート</h3>
+      <div class="radar-legend" id="radarLegend"></div>
+      <div class="radar-box">
+        <canvas id="radarChart"></canvas>
+      </div>
+      
+    </div>
+
+    <!-- 能力別テーブル -->
+    <p id="compareNote" class="compare-note" style="display:none;">この表は評価ではなく、話す順番を決めるためのものです。</p>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <table class="result-table">
+        <tr id="resultTableHead">
+          <th style="width:40px;">区分</th>
+          <th>能力</th>
+          <th style="width:70px;">スコア</th>
+        </tr>
+        <tbody id="resultTableBody"></tbody>
+      </table>
+    </div>
+
+    <!-- 分析テキスト -->
+    <div class="analysis-box" id="analysisBox"></div>
+
+    <!-- 本人の面談前メモ・個人目標（上長評価モードで、本人の自己評価と重ねて表示できた時のみ表示） -->
+    <div class="comment-area" id="selfInputDisplay" style="display:none;background:#f7f9fc;"></div>
+
+    <!-- 面談用の記入欄（面談用URLモードのみ表示） -->
+    <div class="comment-area" id="interviewFieldsArea" style="display:none;">
+      <label for="interviewMemoBox"></label>
+      <textarea class="comment-box" id="interviewMemoBox" placeholder=""></textarea>
+
+      <label for="nextTermGoalBox" style="margin-top:14px;"></label>
+      <textarea class="comment-box" id="nextTermGoalBox" placeholder=""></textarea>
+
+      <label for="interviewNotesBox" style="margin-top:14px;"></label>
+      <textarea class="comment-box" id="interviewNotesBox" placeholder=""></textarea>
+    </div>
+
+    <!-- 個人目標（成長の余白に対して） -->
+    <div class="comment-area" id="goalArea" style="display:none;">
+      <label style="margin-bottom:4px;"></label>
+      <p style="font-size:11px;color:var(--muted);margin:0 0 12px;"></p>
+      <div id="goalFields"></div>
+    </div>
+
+    <!-- 半期の個人目標／本人の振り返り（自己診断モードのみ） -->
+    <div class="comment-area" id="termGoalArea" style="display:none;">
+      <label for="termGoalBox"></label>
+      <textarea class="comment-box" id="termGoalBox" placeholder=""></textarea>
+    </div>
+    <div class="comment-area" id="selfReflectionArea" style="display:none;">
+      <label for="selfReflectionBox"></label>
+      <textarea class="comment-box" id="selfReflectionBox" placeholder=""></textarea>
+    </div>
+
+    <!-- 面談前メモ（上長が自分の評価画面で書く一言。上長評価モードのみ表示） -->
+    <div class="comment-area manager-only" id="managerCommentArea" style="display:none;">
+      <label for="commentBox"></label>
+      <textarea class="comment-box" id="commentBox" placeholder=""></textarea>
+    </div>
+
+    <button class="btn btn-primary" id="finalizeBtn" style="display:none;width:100%;margin-bottom:16px;" onclick="finalizeSelfInput()">✓ 入力を完了して上長用URLを発行する</button>
+
+    <div id="step3-nav" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+      <span id="printBtns" style="display:none;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-secondary" onclick="printFor('self')">🖨 本人に渡す用（上長メモなし）</button>
+        <button class="btn btn-secondary" onclick="printFor('manager')">🖨 上長控え用（すべて）</button>
+      </span>
+      <button class="btn btn-secondary" id="interviewUrlBtn" style="display:none;" onclick="showInterviewUrlBox()">📋 面談用URLを発行</button>
+      <button class="btn btn-secondary" id="resetBtn" onclick="resetAll()">← はじめからやり直す</button>
+    </div>
+    <div class="send-status" id="sendStatus"></div>
+    <div id="managerUrlBox" style="display:none;margin-top:12px;background:#f0f4ff;border:1px solid #c0cfe8;border-radius:4px;padding:14px 16px;">
+      <div style="font-size:12px;font-weight:700;margin-bottom:8px;">📋 上長評価URLを上長に共有してください</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input id="managerUrlText" type="text" readonly
+          style="flex:1;font-size:11px;font-family:monospace;background:#fff;border:1px solid #ccc;border-radius:3px;padding:6px 8px;color:#333;">
+        <button onclick="copyManagerUrl()"
+          style="white-space:nowrap;background:#1a1a1a;color:#fff;border:none;border-radius:3px;padding:6px 14px;font-size:12px;cursor:pointer;"
+          id="copyUrlBtn">コピー</button>
+      </div>
+      <button class="demo-open" hidden onclick="openDemoMode('manager')">上長として開く</button>
+    </div>
+    <div id="interviewUrlBox" style="display:none;margin-top:12px;background:#f0fff4;border:1px solid #bfe3c7;border-radius:4px;padding:14px 16px;">
+      <div style="font-size:12px;font-weight:700;margin-bottom:8px;">📋 面談用URL（面談当日、この場で開いて記入します）</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input id="interviewUrlText" type="text" readonly
+          style="flex:1;font-size:11px;font-family:monospace;background:#fff;border:1px solid #ccc;border-radius:3px;padding:6px 8px;color:#333;">
+        <button onclick="copyInterviewUrl()"
+          style="white-space:nowrap;background:#1a1a1a;color:#fff;border:none;border-radius:3px;padding:6px 14px;font-size:12px;cursor:pointer;"
+          id="copyInterviewUrlBtn">コピー</button>
+      </div>
+    </div>
+    <button class="demo-open" hidden id="demoInterviewOpen" style="display:none;" onclick="openDemoMode('interview')">面談画面を開く</button>
+    <div class="send-area" style="margin-top:8px;font-size:11px;color:#888;">
+      ※ 回答は自動で記録されます（氏名・所属・スコア・メモ）。送信ボタンを押す必要はありません。
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+// CDNが使えない場合の描画。データ形式・色・凡例・印刷イベントは同じ器を使う。
+if (!window.Chart) {
+  window.Chart = class LocalRadar {
+    static defaults = {};
+    static plugins = [];
+    static register(...plugins) { this.plugins.push(...plugins); }
+    constructor(ctx, config) {
+      this.ctx=ctx; this.canvas=ctx.canvas; this.data=config.data; this.options=config.options;
+      this.onResize=()=>this.resize();
+      window.addEventListener('resize',this.onResize);
+      this.observer = window.ResizeObserver ? new ResizeObserver(this.onResize) : null;
+      this.observer?.observe(this.canvas.parentElement);
+      this.resize();
+    }
+    destroy() { window.removeEventListener('resize',this.onResize); this.observer?.disconnect(); this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height); }
+    resize(width,height) {
+      const parent=this.canvas.parentElement;
+      this.width=width || parent.clientWidth || 600; this.height=height || parent.clientHeight || 360;
+      const ratio=window.devicePixelRatio || 1;
+      this.canvas.width=Math.round(this.width*ratio); this.canvas.height=Math.round(this.height*ratio);
+      this.canvas.style.width=this.width+'px'; this.canvas.style.height=this.height+'px';
+      this.ctx.setTransform(ratio,0,0,ratio,0,0); this.update();
+    }
+    update() {
+      const g=this.ctx,w=this.width,h=this.height,n=this.data.labels.length,narrow=w<500;
+      const size=narrow ? 10 : 12,line=size*1.3,padding=narrow ? 4 : 8;
+      const x=w/2,y=h/2;
+      const widths=this.data.labels.map(parts=>Math.max(...parts.map(t=>{g.font='bold '+size+'px sans-serif';return g.measureText(t).width;})));
+      const radius=Math.max(20,Math.min(h/2-48,w/2-Math.max(...widths)/2-20));
+      const angle=i=>i*Math.PI*2/n-Math.PI/2;
+      const pos=(i,r)=>({x:x+Math.cos(angle(i))*r,y:y+Math.sin(angle(i))*r});
+      const boxes=this.data.labels.map((parts,i)=>{
+        const p=pos(i,radius+padding),cs=Math.cos(angle(i)),sn=Math.sin(angle(i)),ww=widths[i],hh=parts.length*line;
+        let left=p.x-ww/2,top=p.y-hh/2;
+        if(cs>0.2)left=p.x; if(cs<-.2)left=p.x-ww;
+        if(sn<-.8)top=p.y-hh; if(sn>.8)top=p.y;
+        left=Math.max(1,Math.min(w-ww-1,left));top=Math.max(1,Math.min(h-hh-1,top));
+        return {left,right:left+ww,top,bottom:top+hh};
+      });
+      this.scales={r:{xCenter:x,yCenter:y,drawingArea:radius,getIndexAngle:i=>i*Math.PI*2/n,getPointLabelPosition:i=>boxes[i]}};
+      g.clearRect(0,0,w,h);
+      g.lineWidth=1;g.strokeStyle='#e6e6e6';g.setLineDash([]);
+      for(let tick=1;tick<=4;tick++) {
+        g.beginPath();for(let i=0;i<n;i++){const p=pos(i,radius*tick/4);if(i)g.lineTo(p.x,p.y);else g.moveTo(p.x,p.y);}g.closePath();g.stroke();
+      }
+      for(let i=0;i<n;i++){const p=pos(i,radius);g.beginPath();g.moveTo(x,y);g.lineTo(p.x,p.y);g.stroke();}
+      g.font='bold '+size+'px sans-serif';g.textAlign='center';g.textBaseline='top';
+      this.data.labels.forEach((parts,i)=>{
+        const b=boxes[i],col=this.options.scales.r.pointLabels.color;
+        g.fillStyle=typeof col==='function'?col({index:i}):col;
+        parts.forEach((text,j)=>g.fillText(text,(b.left+b.right)/2,b.top+j*line));
+      });
+      LocalRadar.plugins.forEach(p=>p.beforeDatasetsDraw?.(this));
+      for(const d of this.data.datasets){
+        const pts=d.data.map((v,i)=>pos(i,radius*Math.max(0,Math.min(4,v))/4));
+        g.beginPath();pts.forEach((p,i)=>i?g.lineTo(p.x,p.y):g.moveTo(p.x,p.y));g.closePath();
+        g.fillStyle=d.backgroundColor;g.fill();g.strokeStyle=d.borderColor;g.lineWidth=d.borderWidth;g.setLineDash(d.borderDash||[]);g.stroke();g.setLineDash([]);
+        for(const p of pts){g.beginPath();g.arc(p.x,p.y,d.pointRadius||4,0,Math.PI*2);g.fillStyle=d.pointBackgroundColor;g.fill();g.strokeStyle=d.pointBorderColor||d.borderColor;g.lineWidth=d.pointBorderWidth||1;g.stroke();}
+      }
+      LocalRadar.plugins.forEach(p=>p.afterDraw?.(this));
+    }
+  };
+}
+
+window.addEventListener("error", e => {
+  const box = document.getElementById("step1Error");
+  if (box) { box.style.display="block"; box.textContent="起動に失敗しました。company.jsの設定を確認してください。"; }
+});
+// ─────────────────────────────────────────
+// マスターデータ
+// ─────────────────────────────────────────
+
+const C = window.COMPANY;
+validateCompany(C);
+const { CAPABILITIES, GRADES, QUESTION_ORDER, GAS_URL, DEMO_MODE, LOCAL_KEY } = C;
+const QUESTION_COUNT = QUESTION_ORDER.length;
+let userGrade = "";
+function validateCompany(c) {
+  if (!c || c.schemaVersion !== 1) throw new Error("company.js のschemaVersionを確認してください");
+  for (const key of ["id", "companyName", "appName", "managerAppName", "interviewAppName", "LOCAL_KEY"]) {
+    if (typeof c[key] !== "string" || !c[key]) throw new Error(key + " がありません");
+  }
+  if (typeof c.DEMO_MODE !== "boolean" || (!c.DEMO_MODE && !/^https:\/\//.test(c.GAS_URL))) throw new Error("保存先の設定を確認してください");
+  if (c.CAPABILITIES?.length !== 8 || !c.CAPABILITIES.every(x => x.name && x.short && x.questions?.length === 3 && x.questions.every(q => typeof q === "string" && q))) throw new Error("8観点×3問が必要です");
+  const order = c.QUESTION_ORDER;
+  if (order?.length !== 24 || new Set(order.map(x => x.join(","))).size !== 24 || !order.every(([i,q]) => Number.isInteger(i) && i>=0 && i<8 && Number.isInteger(q) && q>=0 && q<3)) throw new Error("QUESTION_ORDERは24問を重複なく指定してください");
+  if (!Number.isInteger(c.radar?.skillCount) || c.radar.skillCount<0 || c.radar.skillCount>8 || c.radar.wrap?.length !== 8) throw new Error("radarの設定を確認してください");
+  if (!c.CAPABILITIES.every((x,i) => x.type === (i<c.radar.skillCount ? "スキル" : "スタンス"))) throw new Error("観点のtypeとskillCountが一致しません");
+  if (!Array.isArray(c.GRADES) || (c.GRADES.length && c.GRADES[0] !== "")) throw new Error("GRADESの先頭は空文字にしてください");
+}
+function escapeHTML(value) { return String(value ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch])); }
+function applyCompany() {
+  document.title = C.appName;
+  document.getElementById("appTitle").textContent = C.appName;
+  document.getElementById("inputName").placeholder = C.placeholders.name;
+  document.getElementById("inputDept").placeholder = C.placeholders.dept;
+  document.getElementById("selfNoteBox").innerHTML = C.text.selfNote;
+  for (const [id, field] of Object.entries(C.fields)) {
+    document.querySelector('label[for="'+id+'"]').innerHTML = field.label;
+    document.getElementById(id).placeholder = field.placeholder;
+  }
+  document.querySelector("#goalArea > label").textContent = C.text.goalTitle;
+  document.querySelector("#goalArea > p").textContent = C.text.goalHint;
+  document.querySelector('label[for="inputGrade"]').textContent = C.text.gradeLabel;
+  const grade = document.getElementById("inputGrade");
+  grade.innerHTML = '<option value="">'+escapeHTML(C.text.gradeEmpty)+'</option>' + GRADES.slice(1).map((g,i) => '<option value="'+(i+1)+'">'+escapeHTML(g)+'</option>').join("");
+  document.getElementById("gradeGroup").style.display = GRADES.length ? "block" : "none";
+  document.getElementById("qCounter").textContent = "1 / "+QUESTION_COUNT;
+  if (DEMO_MODE) {
+    document.getElementById("demoBand").hidden = false;
+    document.getElementById("demoFlow").innerHTML = C.text.demoFlow.map(t => '<div>'+t+'</div>').join("");
+    document.getElementById("demoFlow").hidden = false;
+    document.querySelectorAll(".demo-open").forEach(el => el.hidden = false);
+  }
+}
+let memoryRecords = [];  // ブラウザの保存が使えない環境（プライベート閲覧など）の予備
+function loadRecords() {
+  try { const t = localStorage.getItem(LOCAL_KEY); const rows = t ? JSON.parse(t) : memoryRecords; return Array.isArray(rows) ? rows : []; }
+  catch (e) { return memoryRecords; }
+}
+function saveRecords(rows) {
+  memoryRecords = rows;
+  try { localStorage.setItem(LOCAL_KEY, JSON.stringify(rows)); } catch (e) { throw new Error("ブラウザに保存できません。通常ウィンドウで開いてください。"); }
+}
+// 記録表の doPost と同じ決まり：同じ人（トークン＋種類＋氏名）は上書き、上長・面談は実在する本人のトークンだけ受け付ける
+function localPost(d) {
+  const rows = loadRecords();
+  const type = d.type || "self";
+  if (type !== "self" && !rows.some(r => r.token === d.token && r.type === "self")) return { status: "error" };
+  const rec = Object.assign({}, d, { type: type });
+  const i = rows.findIndex(r => r.token === d.token && r.type === type && (type === "interview" || r.name === d.name));
+  if (i >= 0) rows[i] = Object.assign({}, rows[i], rec); else rows.push(rec);
+  // 同じブラウザで何度デモをしても増え続けないよう、新しい30人分（本人の記録の数）だけ残す
+  const keep = rows.filter(r => r.type === "self").slice(-30).map(r => r.token);
+  saveRecords(rows.filter(r => keep.includes(r.token)));
+  return { status: "ok" };
+}
+// 記録表の doGet（getSelfScore / getInterviewData）と同じ形で返す
+function localGet(action, token, managerName) {
+  const rows = loadRecords().filter(r => r.token === token);
+  const self = rows.filter(r => r.type === "self").pop();
+  if (!self) return { status: "notfound" };
+  const base = {
+    status: "ok", name: self.name || "", scores: self.scores || [], comment: self.comment || "",
+    goal1_cap: self.goal1_cap || "", goal1_text: self.goal1_text || "",
+    goal2_cap: self.goal2_cap || "", goal2_text: self.goal2_text || "",
+    term_goal: self.term_goal || "", self_reflection: self.self_reflection || "",
+  };
+  if (action === "getSelfScore") {
+    const m = rows.filter(r => r.type === "manager" && r.name === managerName).pop();
+    base.manager_comment = m ? (m.comment || "") : "";
+    return base;
+  }
+  const manager = rows.filter(r => r.type === "manager").pop();
+  const interview = rows.filter(r => r.type === "interview").pop();
+  base.manager = manager ? { name: manager.name || "", scores: manager.scores || [], comment: manager.comment || "" } : null;
+  base.interview_memo  = interview ? (interview.interview_memo  || "") : "";
+  base.next_term_goal  = interview ? (interview.next_term_goal  || "") : "";
+  base.interview_notes = interview ? (interview.interview_notes || "") : "";
+  return base;
+}
+function postRecord(payload) {
+  if (DEMO_MODE) {
+    const result = localPost(payload);
+    return result.status === "ok" ? Promise.resolve(result) : Promise.reject(new Error("本人の記録が見つかりません"));
+  }
+  return fetch(GAS_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+}
+function beaconRecord(payload) {
+  if (DEMO_MODE) { const r = localPost(payload); if(r.status !== "ok") throw new Error("本人の記録がありません"); return; }
+  navigator.sendBeacon(GAS_URL, new Blob([JSON.stringify(payload)], { type: "application/json" }));
+}
+function requestRecord(action, params, cbName, scriptId) {
+  if (DEMO_MODE) {
+    setTimeout(() => { if (window[cbName]) window[cbName](localGet(action, params.token, params.manager || "")); }, 150);
+    return;
+  }
+  const q = Object.keys(params).map(k => `${k}=${encodeURIComponent(params[k])}`).join("&");
+  const script = document.createElement("script");
+  script.id = scriptId; script.src = `${GAS_URL}?action=${action}&${q}&callback=${cbName}`;
+  document.body.appendChild(script);
+}
+function clearDemoRecords() {
+  saveRecords([]);
+  try { localStorage.removeItem(LOCAL_KEY); } catch (e) { throw new Error("ブラウザに保存できません。通常ウィンドウで開いてください。"); }
+  location.href = location.href.split(/[?#]/)[0];
+}
+
+// ─────────────────────────────────────────
+// 状態管理
+// ─────────────────────────────────────────
+let currentStep = 1;
+let currentQ = 0;
+let answers = new Array(QUESTION_COUNT).fill(null);
+let userName = "", userDept = "";
+let radarChart = null;
+
+// ── レーダーチャートの見た目（本人＝青の塗り／上長＝赤の点線／差が1.0以上の方角を黄色の扇形）──
+const RADAR_SELF_STYLE = {
+  backgroundColor: "rgba(26, 60, 94, 0.20)", borderColor: "#1a3c5e", borderWidth: 2,
+  pointBackgroundColor: "#1a3c5e", pointRadius: 4,
+};
+const RADAR_MANAGER_STYLE = {
+  backgroundColor: "rgba(192, 57, 43, 0.06)", borderColor: "#c0392b", borderWidth: 2.5, borderDash: [6, 4],
+  pointBackgroundColor: "#fff", pointBorderColor: "#c0392b", pointBorderWidth: 2, pointRadius: 5,
+};
+// 項目名はステージ表の言葉を端折らずに出す（カッコ書きは外す）。狭い画面では2行に折る
+const RADAR_WRAP = C.radar.wrap;
+function radarLabels() {
+  const narrow = window.innerWidth < 560;
+  return CAPABILITIES.map((c, i) => {
+    const num = c.name.split(" ")[0];
+    const lines = narrow ? RADAR_WRAP[i].split("|") : [RADAR_WRAP[i].replace("|", "")];
+    lines[0] = num + " " + lines[0];
+    return [...lines, "　　　　"];  // 最後の空き行に点数を描く（点数の幅ぶん場所を取っておく）
+  });
+}
+function radarOptions() {
+  const narrow = window.innerWidth < 560;
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      r: {
+        min: 0, max: 4,
+        ticks: { stepSize: 1, display: false },
+        grid: { color: "#e6e6e6" }, angleLines: { color: "#e6e6e6" },
+        pointLabels: {
+          font: { size: narrow ? 10 : 12, weight: "bold", lineHeight: 1.3 },
+          color: ctx => ctx.index < C.radar.skillCount ? "#1a3c5e" : "#2e6b4f",
+          padding: narrow ? 4 : 8,
+        },
+      },
+    },
+    plugins: { legend: { display: false } },
+  };
+}
+// 項目名の下に点数（2人分あるときは「本人 / 上長」を色分け）
+const radarScorePlugin = {
+  id: "radarScores",
+  afterDraw(chart) {
+    const r = chart.scales.r, ds = chart.data.datasets;
+    if (!r || !ds.length) return;
+    const g = chart.ctx;
+    CAPABILITIES.forEach((_, i) => {
+      const b = r.getPointLabelPosition(i);
+      const y = b.bottom - (window.innerWidth < 560 ? 6 : 8);
+      const parts = [];
+      ds.forEach((d, k) => {
+        if (k > 0) parts.push([" / ", "#999"]);
+        parts.push([Number(d.data[i]).toFixed(1), d.borderColor]);
+      });
+      g.save();
+      g.font = `bold ${window.innerWidth < 560 ? 11 : 13}px sans-serif`; g.textBaseline = "middle"; g.textAlign = "left";
+      let x = (b.left + b.right) / 2 - parts.reduce((w, p) => w + g.measureText(p[0]).width, 0) / 2;
+      parts.forEach(([t, col]) => { g.fillStyle = col; g.fillText(t, x, y); x += g.measureText(t).width; });
+      g.restore();
+    });
+  },
+};
+// 本人と上長の差が1.0以上の方角を、うすい黄色の扇形で塗る
+const radarGapPlugin = {
+  id: "radarGap",
+  beforeDatasetsDraw(chart) {
+    const r = chart.scales.r, ds = chart.data.datasets;
+    if (!r || ds.length < 2) return;
+    const g = chart.ctx, step = Math.PI * 2 / CAPABILITIES.length;
+    CAPABILITIES.forEach((_, i) => {
+      if (Math.abs(ds[0].data[i] - ds[1].data[i]) < 1.0) return;
+      const ang = r.getIndexAngle(i) - Math.PI / 2;
+      g.save();
+      g.fillStyle = "rgba(253, 224, 120, 0.45)";
+      g.beginPath(); g.moveTo(r.xCenter, r.yCenter);
+      g.arc(r.xCenter, r.yCenter, r.drawingArea, ang - step / 2, ang + step / 2);
+      g.closePath(); g.fill(); g.restore();
+    });
+  },
+};
+// グラフの上の凡例。parts に "self"（本人）／"manager"（上長）／"gap"（差の黄色）を並べる
+function setRadarLegend(parts) {
+  const html = {
+    self:    '<span class="lg-self"><span class="lg-line"></span>本人（自己評価）</span>',
+    manager: '<span class="lg-manager"><span class="lg-line"></span>上長（上長評価）</span>',
+    gap:     '<span class="lg-gap"><span class="lg-box"></span>差が1.0以上</span>',
+  };
+  document.getElementById("radarLegend").innerHTML = parts.map(p => html[p]).join("");
+}
+if (window.Chart) {
+  Chart.register(radarScorePlugin, radarGapPlugin);
+  // アニメーションの途中が印刷に写ると線が中心につぶれるため、アニメーションは使わない
+  Chart.defaults.animation = false;
+}
+let submitted = false;
+let lastSentAnswers = "";   // 自動送信ずみの回答内容
+let lastSentComment = "";   // 自動送信ずみのメモ
+let overlayDone = false;    // 上長モードで重ね表示ずみか
+let isManagerMode = false;
+let targetName = "";
+let autoAdvanceTimer = null;
+let selfToken = "";  // 自己評価送信時に発行する認証トークン（上長評価URLに埋め込む）
+let urlToken = "";   // 上長評価モードでURLから受け取ったトークン
+let goalCaps = [""];   // 個人目標の対象能力名（成長の余白1つ）
+let goalTexts = [""];  // 個人目標の内容
+let lastSentGoals = "";    // 自動送信ずみの個人目標
+let lastSentTermGoal = "";        // 自動送信ずみの「半期の個人目標」
+let lastSentSelfReflection = "";  // 自動送信ずみの「本人の振り返り」
+let gasSendInFlight = false;  // GASへの送信が進行中か（複数欄の同時編集で上書き事故を防ぐ）
+let gasSendQueued = false;    // 送信中にさらに編集があった場合、完了後にもう一度送り直すフラグ
+let lastManagerScores = null; // 上長評価モード：本人データの再取得ボタン用に、自分の送信スコアを覚えておく
+let managerUrlRequested = false; // 「入力を完了して上長用URLを発行する」が押されたか（押すまでURLは出さない）
+let isInterviewMode = false;  // 面談用URL画面か（本人・上長の既存データを表示し、面談メモを記入する専用モード）
+let interviewContextLoaded = false; // 面談用URLでトークンからデータを取得できたか（できる前は自動保存しない）
+let interviewSelfScores = null;     // 面談記録を送る際に添えるスコア（本人のスコアをそのまま使う）
+let lastSentInterviewMemo = "";
+let lastSentNextTermGoal = "";
+let lastSentInterviewNotes = "";
+let resetGeneration = 0;  // 「はじめからやり直す」を押すたびに増える。古い問い合わせの返事を捨てる目印
+
+// ─────────────────────────────────────────
+// STEP 1 → STEP 2
+// ─────────────────────────────────────────
+function goStep2() {
+  userName = document.getElementById("inputName").value.trim();
+  userDept = document.getElementById("inputDept").value.trim();
+  userGrade = document.getElementById("inputGrade").value;
+
+  const errEl = document.getElementById("step1Error");
+  if (!userName || !userDept) {
+    const missing = [!userName && "氏名", !userDept && "所属"].filter(Boolean).join("・");
+    errEl.textContent = `${missing}を入力してください`;
+    errEl.style.display = "block";
+    return;
+  }
+  errEl.style.display = "none";
+
+  showStep(2);
+  currentQ = 0;
+  renderQuestion();
+}
+
+// ─────────────────────────────────────────
+// 設問レンダリング
+// ─────────────────────────────────────────
+function renderQuestion() {
+  const [capIdx, qIdx] = QUESTION_ORDER[currentQ];
+  const cap = CAPABILITIES[capIdx];
+  const qText = cap.questions[qIdx];
+  const qNum = currentQ + 1;
+  const typeClass = cap.type === "スキル" ? "skill" : "stance";
+
+  const prevSelected = answers[currentQ];
+  const opts = [
+    { val: 1, label: "まだ<br>できていない" },
+    { val: 2, label: "ときどき<br>できている" },
+    { val: 3, label: "だいたい<br>できている" },
+    { val: 4, label: "いつも<br>できている" },
+  ];
+
+  let radioHTML = opts.map(o => `
+    <div class="radio-opt">
+      <input type="radio" name="qans" id="opt${o.val}" value="${o.val}"
+        ${prevSelected === o.val ? "checked" : ""} onchange="selectAnswer(${o.val})">
+      <label for="opt${o.val}">
+        <span class="score">${o.val}</span>
+        <span>${o.label}</span>
+      </label>
+    </div>`).join("");
+
+  document.getElementById("questionCard").innerHTML = `
+    <div class="q-header">
+      <div class="q-num">${qNum}</div>
+      <div style="flex:1;">
+        <div class="q-text">${qText}</div>
+      </div>
+    </div>
+    <div class="radio-group">${radioHTML}</div>
+  `;
+
+  document.getElementById("qCounter").textContent = `${qNum} / ${QUESTION_COUNT}`;
+
+  // プログレス
+  const pct = Math.round((currentQ / QUESTION_COUNT) * 100);
+  document.getElementById("progressFill").style.width = pct + "%";
+  document.getElementById("stepLabel").textContent = `STEP 2 / 3 ─ ${qNum}/${QUESTION_COUNT}問`;
+
+  // 次へボタン
+  const nextBtn = document.getElementById("nextBtn");
+  const isLast = currentQ === QUESTION_COUNT - 1;
+  nextBtn.textContent = isLast ? "結果を見る ✓" : "次へ →";
+  nextBtn.disabled = answers[currentQ] === null;
+
+  // 前へボタン
+  document.querySelector(".q-nav .btn-secondary").disabled = currentQ === 0;
+}
+
+function selectAnswer(val) {
+  answers[currentQ] = val;
+  if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
+  autoAdvanceTimer = setTimeout(() => { nextQ(); }, 350);
+}
+
+// 印刷ボタン：本人用は上長のメモを外す。PDFの名前も分けて、取り違えないようにする
+function printFor(kind) {
+  const baseTitle = document.title;
+  document.body.classList.toggle("print-for-self", kind === "self");
+  document.title = baseTitle + (kind === "self" ? "_本人用" : "_上長控え");
+  // Safari などは印刷が終わる前に print() から戻るため、元に戻すのは afterprint で行う
+  window.addEventListener("afterprint", function restore() {
+    document.title = baseTitle;
+    document.body.classList.remove("print-for-self");
+    window.removeEventListener("afterprint", restore);
+  });
+  window.print();
+}
+
+// 印刷時、テキストエリアの枠線を消して「書きかけ」感をなくし、
+// 中身が省略されないよう入力欄の高さを内容に合わせて広げる（印刷後に元へ戻す）
+window.addEventListener("beforeprint", function() {
+  document.querySelectorAll(".comment-box, .goal-box").forEach(function(el) {
+    el.dataset.printPrevHeight = el.style.height || "";
+    el.style.height = el.scrollHeight + "px";
+  });
+});
+window.addEventListener("afterprint", function() {
+  document.querySelectorAll(".comment-box, .goal-box").forEach(function(el) {
+    el.style.height = el.dataset.printPrevHeight || "";
+  });
+});
+
+document.addEventListener("keydown", function(e) {
+  if (!document.getElementById("step2").classList.contains("active")) return;
+  if (e.key >= "1" && e.key <= "4") {
+    const val = parseInt(e.key);
+    answers[currentQ] = val;
+    const radio = document.querySelector(`input[name="qans"][value="${val}"]`);
+    if (radio) radio.checked = true;
+    if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
+    autoAdvanceTimer = setTimeout(() => { nextQ(); }, 350);
+  }
+});
+
+function nextQ() {
+  if (answers[currentQ] === null) { alert("回答を選んでください"); return; }
+  if (currentQ < QUESTION_COUNT - 1) {
+    currentQ++;
+    renderQuestion();
+  } else {
+    showResult();
+  }
+}
+
+function prevQ() {
+  if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; }
+  if (currentQ > 0) { currentQ--; renderQuestion(); }
+}
+
+// ─────────────────────────────────────────
+// 結果計算
+// ─────────────────────────────────────────
+function calcScores() {
+  // 各能力のスコア（3問平均）
+  const capAnswers = Array.from({length: CAPABILITIES.length}, () => []);
+  QUESTION_ORDER.forEach(([capIdx, _], i) => {
+    capAnswers[capIdx].push(answers[i]);
+  });
+  return capAnswers.map(arr => {
+    const sum = arr.reduce((a, b) => a + b, 0);
+    return Math.round((sum / arr.length) * 10) / 10;
+  });
+}
+
+// ─────────────────────────────────────────
+// 結果表示
+// ─────────────────────────────────────────
+function showResult() {
+  showStep(3);
+  if (isManagerMode) {
+    document.getElementById("printBtns").style.display = "flex";
+    document.getElementById("interviewUrlBtn").style.display = "";
+    document.querySelector('label[for="commentBox"]').innerHTML = escapeHTML(C.text.managerCommentTitle) + '<span class="q-hint">' + escapeHTML(C.fields.commentBox.hint || document.createRange().createContextualFragment(C.fields.commentBox.label).querySelector(".q-hint")?.textContent || "") + '</span>';
+  }
+  document.getElementById("managerCommentArea").style.display = "block";
+  document.getElementById("progressFill").style.width = "100%";
+  document.getElementById("stepLabel").textContent = "STEP 3 / 3 ─ 結果";
+
+  const scores = calcScores();
+
+  // ヘッダー
+  document.getElementById("resultName").textContent = isManagerMode
+    ? `${targetName} さんへの上長評価（評価者：${userName}）`
+    : userName + " さんの自己診断結果";
+  document.getElementById("resultMeta").textContent = isManagerMode
+    ? `評価者所属：${userDept}　診断日：${new Date().toLocaleDateString("ja-JP")}`
+    : `所属：${userDept}　${userGrade ? GRADES[userGrade] + "　" : ""}診断日：${new Date().toLocaleDateString("ja-JP")}`;
+  document.title = isManagerMode
+    ? `${targetName || userName}_上長評価`
+    : `${userName}_自己診断結果`;
+
+  // スコアサマリー（自己評価平均・差分平均は overlayManagerChart 側で追加する）
+  const avgScore = Math.round(scores.reduce((a, b) => a + b) / CAPABILITIES.length * 10) / 10;
+  const avgLabel = isManagerMode ? "上長評価平均" : "平均スコア";
+
+  document.getElementById("resultSummary").innerHTML = `
+    <div class="rs-item"><div class="rs-lbl">${avgLabel}</div><div class="rs-val j-ok">${avgScore}</div></div>
+  `;
+
+  // レーダーチャート
+  if (radarChart) { radarChart.destroy(); }
+  const ctx = document.getElementById("radarChart").getContext("2d");
+  radarChart = new Chart(ctx, {
+    type: "radar",
+    data: {
+      labels: radarLabels(),
+      datasets: [
+        {
+          label: isManagerMode ? `上長評価（${userName}）` : "あなたのスコア",
+          data: scores,
+          ...(isManagerMode ? RADAR_MANAGER_STYLE : RADAR_SELF_STYLE),
+        },
+      ],
+    },
+    options: radarOptions(),
+  });
+  setRadarLegend(isManagerMode ? ["manager"] : ["self"]);
+
+  // テーブル（上長評価との重ね表示は overlayManagerChart 側で比較表に差し替える）
+  document.getElementById("resultTableHead").innerHTML = `
+    <th style="width:40px;">区分</th>
+    <th>能力</th>
+    <th style="width:70px;">スコア</th>
+  `;
+  document.getElementById("compareNote").style.display = "none";
+  let tableHTML = "";
+  CAPABILITIES.forEach((cap, i) => {
+    const typeTag = cap.type === "スキル"
+      ? `<span class="skill-tag tag-skill">スキル</span>`
+      : `<span class="skill-tag tag-stance">スタンス</span>`;
+    tableHTML += `
+      <tr>
+        <td style="text-align:center;">${typeTag}</td>
+        <td class="cap-name" style="font-size:12px;">${cap.type === "スタンス" ? cap.name.replace(/（.*?）/g, "") : cap.name}</td>
+        <td class="score-cell">${scores[i].toFixed(1)}</td>
+      </tr>`;
+  });
+  document.getElementById("resultTableBody").innerHTML = tableHTML;
+
+  // 分析テキスト（素点の上位1つ・下位1つ）
+  const ranked = CAPABILITIES.map((cap, i) => ({ name: cap.name, score: scores[i], idx: i, type: cap.type }))
+    .sort((a, b) => b.score - a.score);
+  const strengthItems = ranked.slice(0, 1);
+  const growthItems = ranked.slice(-1);
+
+  const strengthText = strengthItems.map(c => `・${c.name.replace(/（.*?）/g, "")}（${c.score.toFixed(1)}）`).join("<br>");
+  const growthText = growthItems.map(c => `・${c.name.replace(/（.*?）/g, "")}（${c.score.toFixed(1)}）`).join("<br>");
+
+  document.getElementById("analysisBox").classList.remove("compare");
+  document.getElementById("analysisBox").innerHTML = `
+    <div class="analysis-item">
+      <h4 id="strengthHeading">強み仮説（スコア上位1つ）</h4>
+      <p class="one-line">${strengthText}</p>
+    </div>
+    <div class="analysis-item">
+      <h4 id="growthHeading">成長の余白（スコア下位1つ）</h4>
+      <p class="one-line">${growthText}</p>
+    </div>
+  `;
+
+  // 個人目標欄（自己診断モードのみ・成長の余白に対して書く）※いったん非表示（2026-10-14）
+  if (!isManagerMode) {
+    if (C.showGrowthGoals) renderGoalFields(growthItems);
+    document.getElementById("termGoalArea").style.display = "block";
+    document.getElementById("selfReflectionArea").style.display = "block";
+    document.getElementById("finalizeBtn").style.display = "block";
+  }
+
+  // 結果が出た時点で自動的に記録する（送信ボタンは廃止）
+  // 答え直して戻ってきたときは、記録しなおす
+  if (answers.join(",") !== lastSentAnswers) submitted = false;
+  if (isManagerMode && !overlayDone && !lastSentAnswers) {
+    // 上長用URLを開き直した場合、空のメモで前のメモを上書きしないよう、先に前のメモを戻してから記録する
+    lastManagerScores = scores;
+    fetchSelfScoreAndOverlay(scores, true);
+    return;
+  }
+  if (!submitted) sendToGAS();
+}
+
+// ─────────────────────────────────────────
+// 個人目標欄（成長の余白に対して書く）
+// ─────────────────────────────────────────
+function renderGoalFields(growthItems) {
+  const area = document.getElementById("goalArea");
+  const fields = document.getElementById("goalFields");
+  area.style.display = "block";
+
+  goalCaps = growthItems.map(g => g.name);
+  if (goalTexts.length !== growthItems.length) goalTexts = growthItems.map(() => "");
+
+  fields.innerHTML = growthItems.map((g, i) => {
+    const typeTag = g.type === "スキル"
+      ? `<span class="skill-tag tag-skill">スキル</span>`
+      : `<span class="skill-tag tag-stance">スタンス</span>`;
+    return `
+      <div class="goal-field">
+        <div class="goal-cap">${typeTag}${g.name}</div>
+        <textarea class="goal-box" id="goalBox${i}" data-idx="${i}"
+          placeholder="${escapeHTML(C.text.goalPlaceholder)}">${goalTexts[i] || ""}</textarea>
+      </div>`;
+  }).join("");
+
+  growthItems.forEach((g, i) => {
+    document.getElementById(`goalBox${i}`).addEventListener("blur", function() {
+      goalTexts[i] = this.value;
+      const joined = goalTexts.join("||");
+      if (joined === lastSentGoals) return;
+      if (!lastSentAnswers) return;  // まだ一度も記録されていないときは何もしない
+      submitted = false;
+      sendToGAS();
+    });
+  });
+}
+
+// ─────────────────────────────────────────
+// GAS送信
+// ─────────────────────────────────────────
+// メモ欄：書いて他をさわった時点（blur）に加えて、入力が止まってからも
+// 自動保存する（最後の欄のまま離脱されると blur が一度も起きず保存されないため）
+let autosaveDebounceTimer = null;
+function scheduleAutosave(box, getLastSent) {
+  clearTimeout(autosaveDebounceTimer);
+  autosaveDebounceTimer = setTimeout(function() {
+    if (box.value === getLastSent()) return;
+    if (!lastSentAnswers && !interviewContextLoaded) return;   // まだ一度も記録されていないときは何もしない
+    submitted = false;
+    sendToGAS();
+  }, 1200);
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+  const box = document.getElementById("commentBox");
+  if (!box) return;
+  box.addEventListener("blur", function() {
+    if (this.value === lastSentComment) return;
+    if (!lastSentAnswers) return;   // まだ一度も記録されていないときは何もしない
+    submitted = false;
+    sendToGAS();
+  });
+  box.addEventListener("input", function() {
+    scheduleAutosave(box, function() { return lastSentComment; });
+  });
+
+  const termGoalBox = document.getElementById("termGoalBox");
+  if (termGoalBox) {
+    termGoalBox.addEventListener("blur", function() {
+      if (this.value === lastSentTermGoal) return;
+      if (!lastSentAnswers) return;
+      submitted = false;
+      sendToGAS();
+    });
+    termGoalBox.addEventListener("input", function() {
+      scheduleAutosave(termGoalBox, function() { return lastSentTermGoal; });
+    });
+  }
+
+  const selfReflectionBox = document.getElementById("selfReflectionBox");
+  if (selfReflectionBox) {
+    selfReflectionBox.addEventListener("blur", function() {
+      if (this.value === lastSentSelfReflection) return;
+      if (!lastSentAnswers) return;
+      submitted = false;
+      sendToGAS();
+    });
+    selfReflectionBox.addEventListener("input", function() {
+      scheduleAutosave(selfReflectionBox, function() { return lastSentSelfReflection; });
+    });
+  }
+
+  // 離脱・タブ切り替え時の最終フラッシュ（デバウンスのタイマーが発火する前に
+  // 離脱／裏に回られた場合の保険。sendBeaconは離脱中でも送信を保証する）
+  // ・pagehide … タブを閉じる／別URLへ移動する場合に発火
+  // ・visibilitychange(hidden) … タブは閉じず、別タブへ切り替えて裏に回った場合に発火
+  //   （上長用URLを別タブで開く運用があるため、pagehideだけでは拾えない）
+  function flushPendingComment() {
+    if (isManagerMode || isInterviewMode) return;      // 上長・面談モードの面談前メモは別仕様のため対象外
+    if (!lastSentAnswers) return;   // 一度も記録されていなければ送る意味がない
+    const dirty =
+      (box && box.value !== lastSentComment) ||
+      (termGoalBox && termGoalBox.value !== lastSentTermGoal) ||
+      (selfReflectionBox && selfReflectionBox.value !== lastSentSelfReflection);
+    if (!dirty) return;
+    const payload = {
+      timestamp: new Date().toISOString(),
+      name: userName,
+      dept: userDept,
+      comment: box.value,
+      scores: calcScores(),
+      judges: new Array(CAPABILITIES.length).fill(""),
+      type: "self",
+      target_name: "",
+      token: selfToken,
+      manager_url: buildManagerUrl(selfToken, userName),
+      goal1_cap: goalCaps[0] || "", goal1_text: goalTexts[0] || "",
+      goal2_cap: goalCaps[1] || "", goal2_text: goalTexts[1] || "",
+      term_goal: termGoalBox ? termGoalBox.value : "",
+      self_reflection: selfReflectionBox ? selfReflectionBox.value : "",
+    };
+    beaconRecord(payload);
+    // 送信済み扱いにして、同じ内容で二重送信しないようにする
+    lastSentComment = box.value;
+    if (termGoalBox) lastSentTermGoal = termGoalBox.value;
+    if (selfReflectionBox) lastSentSelfReflection = selfReflectionBox.value;
+  }
+  window.addEventListener("pagehide", flushPendingComment);
+  document.addEventListener("visibilitychange", function() {
+    if (document.visibilityState === "hidden") flushPendingComment();
+  });
+
+  // 面談用URL画面の3欄（振り返り／次の半期目標／その他）も同じ自動保存の仕組みに乗せる
+  const interviewMemoBox   = document.getElementById("interviewMemoBox");
+  const nextTermGoalBox    = document.getElementById("nextTermGoalBox");
+  const interviewNotesBox  = document.getElementById("interviewNotesBox");
+
+  if (interviewMemoBox) {
+    interviewMemoBox.addEventListener("blur", function() {
+      if (this.value === lastSentInterviewMemo) return;
+      if (!interviewContextLoaded) return;
+      submitted = false;
+      sendToGAS();
+    });
+    interviewMemoBox.addEventListener("input", function() {
+      scheduleAutosave(interviewMemoBox, function() { return lastSentInterviewMemo; });
+    });
+  }
+  if (nextTermGoalBox) {
+    nextTermGoalBox.addEventListener("blur", function() {
+      if (this.value === lastSentNextTermGoal) return;
+      if (!interviewContextLoaded) return;
+      submitted = false;
+      sendToGAS();
+    });
+    nextTermGoalBox.addEventListener("input", function() {
+      scheduleAutosave(nextTermGoalBox, function() { return lastSentNextTermGoal; });
+    });
+  }
+  if (interviewNotesBox) {
+    interviewNotesBox.addEventListener("blur", function() {
+      if (this.value === lastSentInterviewNotes) return;
+      if (!interviewContextLoaded) return;
+      submitted = false;
+      sendToGAS();
+    });
+    interviewNotesBox.addEventListener("input", function() {
+      scheduleAutosave(interviewNotesBox, function() { return lastSentInterviewNotes; });
+    });
+  }
+
+  function flushPendingInterview() {
+    if (!isInterviewMode) return;
+    if (!interviewContextLoaded) return;
+    const dirty =
+      (interviewMemoBox && interviewMemoBox.value !== lastSentInterviewMemo) ||
+      (nextTermGoalBox && nextTermGoalBox.value !== lastSentNextTermGoal) ||
+      (interviewNotesBox && interviewNotesBox.value !== lastSentInterviewNotes);
+    if (!dirty) return;
+    const payload = {
+      timestamp: new Date().toISOString(),
+      name: targetName,
+      dept: "",
+      comment: "",
+      scores: interviewSelfScores || new Array(CAPABILITIES.length).fill(0),
+      judges: new Array(CAPABILITIES.length).fill(""),
+      type: "interview",
+      target_name: targetName,
+      token: urlToken,
+      manager_url: "",
+      goal1_cap: "", goal1_text: "", goal2_cap: "", goal2_text: "",
+      term_goal: "", self_reflection: "",
+      interview_memo: interviewMemoBox ? interviewMemoBox.value : "",
+      next_term_goal: nextTermGoalBox ? nextTermGoalBox.value : "",
+      interview_notes: interviewNotesBox ? interviewNotesBox.value : "",
+    };
+    beaconRecord(payload);
+    if (interviewMemoBox) lastSentInterviewMemo = interviewMemoBox.value;
+    if (nextTermGoalBox) lastSentNextTermGoal = nextTermGoalBox.value;
+    if (interviewNotesBox) lastSentInterviewNotes = interviewNotesBox.value;
+  }
+  window.addEventListener("pagehide", flushPendingInterview);
+  document.addEventListener("visibilitychange", function() {
+    if (document.visibilityState === "hidden") flushPendingInterview();
+  });
+});
+
+// 「入力を完了して上長用URLを発行する」ボタン：ここを押すまでは上長用URLを
+// 出さない。自動保存の途中(入力途中の文字)や、デバウンス・タブ切替の
+// タイミング競合を気にせず、本人がはっきり「書き終わった」と意思表示した
+// 瞬間の内容だけをURL発行の起点にするための、明示的な区切り。
+function finalizeSelfInput() {
+  managerUrlRequested = true;
+  submitted = false;
+  const statusEl = document.getElementById("sendStatus");
+  statusEl.className = "send-status";
+  statusEl.textContent = "送信中…";
+  sendToGAS();
+}
+
+function lockSendButton() {
+  const btn = document.querySelector("#step3-nav .btn-accent") ||
+              document.querySelector("button[onclick='sendToGAS()']");
+  if (btn) { btn.disabled = true; btn.textContent = "✓ 送信済み"; }
+}
+
+function sendToGAS() {
+  // 複数の欄をほぼ同時に編集すると、送信中の古いデータが後から完了して
+  // 新しいデータを上書きしてしまうことがあるため、送信中は次の送信を予約するだけにする
+  if (gasSendInFlight) {
+    gasSendQueued = true;
+    return;
+  }
+  if (submitted) return;  // 二重送信防止
+
+  const statusEl = document.getElementById("sendStatus");
+  statusEl.className = "send-status";
+  statusEl.textContent = "送信中…";
+
+  const scores = isInterviewMode ? (interviewSelfScores || new Array(CAPABILITIES.length).fill(0)) : calcScores();
+
+  if (!isManagerMode && !isInterviewMode && !selfToken) {
+    // 認証トークンは最初の記録で一度だけ発行する（他人からの推測を防ぐ）
+    // 答え直して記録し直しても同じトークンを使うので、上長へ渡したURLはそのまま使える
+    selfToken = (window.crypto && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : Date.now().toString(36) + Math.random().toString(36).slice(2);
+  }
+
+  const payload = {
+    timestamp: new Date().toISOString(),
+    name: isInterviewMode ? targetName : userName,
+    dept: isInterviewMode ? "" : userDept,
+    ...(GRADES.length ? {grade: userGrade} : {}),
+    comment: document.getElementById("commentBox").value,
+    scores: scores,
+    judges: new Array(CAPABILITIES.length).fill(""), // スプレッドシートの列位置合わせ用（判定機能は廃止済み・表示なし）
+    type: isInterviewMode ? "interview" : (isManagerMode ? "manager" : "self"),
+    target_name: (isManagerMode || isInterviewMode) ? targetName : "",
+    token: (isManagerMode || isInterviewMode) ? urlToken : selfToken,
+    manager_url: (isManagerMode || isInterviewMode) ? "" : buildManagerUrl(selfToken, userName),
+    goal1_cap: goalCaps[0] || "", goal1_text: goalTexts[0] || "",
+    goal2_cap: goalCaps[1] || "", goal2_text: goalTexts[1] || "",
+    term_goal: isManagerMode ? "" : (document.getElementById("termGoalBox") ? document.getElementById("termGoalBox").value : ""),
+    self_reflection: isManagerMode ? "" : (document.getElementById("selfReflectionBox") ? document.getElementById("selfReflectionBox").value : ""),
+    interview_memo: isInterviewMode && document.getElementById("interviewMemoBox") ? document.getElementById("interviewMemoBox").value : "",
+    next_term_goal: isInterviewMode && document.getElementById("nextTermGoalBox") ? document.getElementById("nextTermGoalBox").value : "",
+    interview_notes: isInterviewMode && document.getElementById("interviewNotesBox") ? document.getElementById("interviewNotesBox").value : "",
+  };
+
+  gasSendInFlight = true;
+
+  postRecord(payload)
+  .then(() => {
+    submitted = true; lockSendButton();
+    lastSentAnswers = answers.join(",");
+    lastSentComment = document.getElementById("commentBox").value;
+    lastSentGoals = goalTexts.join("||");
+    if (document.getElementById("termGoalBox")) lastSentTermGoal = document.getElementById("termGoalBox").value;
+    if (document.getElementById("selfReflectionBox")) lastSentSelfReflection = document.getElementById("selfReflectionBox").value;
+    if (document.getElementById("interviewMemoBox")) lastSentInterviewMemo = document.getElementById("interviewMemoBox").value;
+    if (document.getElementById("nextTermGoalBox")) lastSentNextTermGoal = document.getElementById("nextTermGoalBox").value;
+    if (document.getElementById("interviewNotesBox")) lastSentInterviewNotes = document.getElementById("interviewNotesBox").value;
+    if (isInterviewMode) {
+      statusEl.className = "send-status ok";
+      statusEl.textContent = "✓ 記録しました。";
+    } else if (isManagerMode) {
+      statusEl.className = "send-status ok";
+      if (overlayDone) {
+        statusEl.textContent = `✓ 記録しました。「${targetName}」さんの自己評価と重ねて表示しています。`;
+      } else {
+        statusEl.textContent = "✓ 記録しました。本人の自己評価を探しています…";
+        lastManagerScores = scores;
+        fetchSelfScoreAndOverlay(scores);
+      }
+    } else if (managerUrlRequested) {
+      statusEl.className = "send-status ok";
+      statusEl.textContent = "✓ 記録しました。下の上長評価用URLを、ご自身の上長へ送ってください。";
+      showManagerUrlBox();
+    } else {
+      statusEl.className = "send-status ok";
+      statusEl.textContent = "✓ 自動保存しました（上長用URLは「入力を完了して発行する」を押すと表示されます）。";
+    }
+  })
+  .catch(error => {
+    submitted = false;  // 送信失敗時はフラグを戻す（リトライ可能に）
+    statusEl.className = "send-status err";
+    statusEl.textContent = DEMO_MODE ? "ブラウザ内への保存に失敗しました。通常ウィンドウで開いて保存を許可してください。" : "送信に失敗しました。ネットワーク接続を確認してください。";
+  })
+  .finally(() => {
+    gasSendInFlight = false;
+    if (gasSendQueued) {
+      // 送信中に別の欄が編集されていた場合は、最新の内容で送り直す
+      gasSendQueued = false;
+      submitted = false;
+      sendToGAS();
+    }
+  });
+}
+
+// ─────────────────────────────────────────
+// ユーティリティ
+// ─────────────────────────────────────────
+function showStep(n) {
+  currentStep = n;
+  document.querySelectorAll(".step").forEach(el => el.classList.remove("active"));
+  document.getElementById("step" + n).classList.add("active");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function resetAll() {
+  if (!confirm("最初からやり直しますか？")) return;
+  answers = new Array(QUESTION_COUNT).fill(null);
+  userGrade = ""; document.getElementById("inputGrade").value = "";
+  document.getElementById("demoInterviewOpen").style.display = "none";
+  currentQ = 0;
+  userName = ""; userDept = "";
+  submitted = false;
+  selfToken = ""; lastSentAnswers = ""; lastSentComment = ""; overlayDone = false;
+  goalCaps = [""]; goalTexts = [""]; lastSentGoals = "";
+  lastSentTermGoal = ""; lastSentSelfReflection = "";
+  gasSendInFlight = false; gasSendQueued = false;
+  managerUrlRequested = false;
+  lastManagerScores = null;
+  resetGeneration++;  // やり直す前に出した問い合わせの返事が、後から画面に書き込まないようにする
+  clearTimeout(autosaveDebounceTimer);
+  if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; }
+  document.getElementById("finalizeBtn").style.display = "none";
+  document.getElementById("goalArea").style.display = "none";
+  document.getElementById("goalFields").innerHTML = "";
+  document.getElementById("termGoalArea").style.display = "none";
+  document.getElementById("termGoalBox").value = "";
+  document.getElementById("selfReflectionArea").style.display = "none";
+  document.getElementById("selfReflectionBox").value = "";
+  document.getElementById("selfInputDisplay").style.display = "none";
+  document.getElementById("selfInputDisplay").innerHTML = "";
+  document.getElementById("commentBox").value = "";
+  document.getElementById("managerCommentArea").style.display = "none";
+  document.getElementById("managerUrlBox").style.display = "none";
+  document.getElementById("interviewUrlBox").style.display = "none";
+  document.getElementById("interviewUrlText").value = "";
+  document.getElementById("interviewUrlBtn").style.display = "none";
+  document.getElementById("printBtns").style.display = "none";
+  document.getElementById("inputName").value = "";
+  document.getElementById("inputDept").value = "";
+  document.getElementById("step1Error").style.display = "none";
+  document.getElementById("sendStatus").textContent = "";
+  document.getElementById("progressFill").style.width = "0%";
+  document.getElementById("stepLabel").textContent = "STEP 1 / 3";
+  document.getElementById("appTitle").textContent = isManagerMode
+    ? (targetName ? `${targetName} さんへの上長評価` : C.managerAppName)
+    : C.appName;
+  showStep(1);
+}
+
+// ─────────────────────────────────────────
+// URLパラメータ初期化
+// ─────────────────────────────────────────
+function initFromURL() {
+  const p = new URLSearchParams(window.location.search);
+  isManagerMode   = p.get("mode") === "manager";
+  isInterviewMode = p.get("mode") === "interview";
+  targetName    = p.get("target") || "";  // 表示用のみ。データ取得・検証には使わない
+  urlToken      = p.get("token") || "";   // 実際の認証はこちら
+
+  if (isInterviewMode) {
+    loadInterviewView();
+    return;
+  }
+
+  if (p.get("name"))  document.getElementById("inputName").value  = p.get("name");
+  if (p.get("dept"))  document.getElementById("inputDept").value  = p.get("dept");
+
+  const lockName  = !!p.get("name");
+  const lockDept  = !!p.get("dept");
+
+  if (lockName || lockDept) applyLockUI(lockName, lockDept);
+
+  if (isManagerMode) {
+    document.getElementById("appTitle").textContent = targetName
+      ? `${targetName} さんへの上長評価`
+      : C.managerAppName;
+    document.querySelector("#step1 .card-title").textContent = "上長評価モード";
+    document.querySelector("#step1 .card-desc").textContent =
+      `「${targetName}」さんへの評価です。あなた自身の氏名と所属を入力してください。`;
+    document.getElementById("inputName").placeholder = C.placeholders.managerName;
+    if (targetName) {
+      const cautionBox = document.getElementById("managerCautionBox");
+      cautionBox.textContent = `※「${targetName}」さんについての評価です。該当する方について率直に回答してください。`;
+      cautionBox.style.display = "block";
+    }
+    document.getElementById("selfNoteBox").style.display = "none";
+    document.getElementById("demoFlow").hidden = true;
+    document.getElementById("gradeGroup").style.display = "none";
+  }
+}
+
+function applyLockUI(lockName, lockDept) {
+  const lockStyle = "background:#f0f0f0;color:#555;border-color:#ccc;pointer-events:none;";
+  const badge = '<span style="font-size:10px;background:#1a1a1a;color:#fff;padding:1px 6px;border-radius:1px;margin-left:6px;">会社設定</span>';
+  if (lockName) {
+    const el = document.getElementById("inputName");
+    el.setAttribute("readonly", true); el.style.cssText = lockStyle;
+    document.querySelector("label[for='inputName']").insertAdjacentHTML("beforeend", badge);
+  }
+  if (lockDept) {
+    const el = document.getElementById("inputDept");
+    el.setAttribute("readonly", true); el.style.cssText = lockStyle;
+    document.querySelector("label[for='inputDept']").insertAdjacentHTML("beforeend", badge);
+  }
+}
+
+// ─────────────────────────────────────────
+// 上長評価：自己評価データ取得・チャート重ね表示（機能2）
+// ─────────────────────────────────────────
+// 「↻ 本人データを再取得」ボタン：本人が後から書き足した場合に、上長側から
+// 手動で最新データを取りに行くための保険（自動取得は上長の送信時に一度だけのため）
+function refetchSelfInput() {
+  if (!urlToken) return;
+  const statusEl = document.getElementById("sendStatus");
+  statusEl.className = "send-status ok";
+  statusEl.textContent = "本人の最新データを再取得しています…";
+  fetchSelfScoreAndOverlay(lastManagerScores || new Array(CAPABILITIES.length).fill(0));
+}
+
+// sendAfter=true：上長の最初の記録の前に呼ぶ。前に書いた上長メモを欄へ戻してから sendToGAS する
+function fetchSelfScoreAndOverlay(managerScores, sendAfter) {
+  const statusEl = document.getElementById("sendStatus");
+  const cbName = "gasCallback_" + Date.now();
+  const gen = resetGeneration;
+  if (sendAfter) {
+    statusEl.className = "send-status";
+    statusEl.textContent = "本人の自己評価を読み込んでいます…";
+  }
+
+  const timer = setTimeout(() => {
+    window[cbName] = null;
+    if (gen !== resetGeneration) return;
+    if (sendAfter) { sendToGAS(); return; }
+    statusEl.textContent = "✓ 記録しました。本人の自己評価がまだ見つかりません（本人がまだ回答していないか、URLが違う可能性があります）。";
+  }, 8000);
+
+  window[cbName] = function(result) {
+    clearTimeout(timer);
+    window[cbName] = null;
+    document.getElementById("jsonpScript")?.remove();
+    if (gen !== resetGeneration) return;  // やり直したあとに届いた古い返事は使わない
+    if (result.status === "ok") {
+      overlayManagerChart(managerScores, result.scores);
+      renderSelfInputDisplay(result);
+      overlayDone = true;
+      const box = document.getElementById("commentBox");
+      if (result.manager_comment && !box.value) box.value = result.manager_comment;
+      if (sendAfter) { sendToGAS(); return; }
+      statusEl.textContent = `✓ 記録しました。「${targetName}」さんの自己評価と重ねて表示しています。`;
+    } else {
+      if (sendAfter) { sendToGAS(); return; }
+      statusEl.textContent = "✓ 記録しました。本人の自己評価がまだ見つかりません（本人がまだ回答していないか、URLが違う可能性があります）。";
+    }
+  };
+
+  requestRecord("getSelfScore", {token:urlToken, manager:userName}, cbName, "jsonpScript");
+}
+
+function overlayManagerChart(managerScores, selfScores) {
+  radarChart.data.datasets = [
+    {
+      label: `自己評価（${targetName}）`,
+      data: selfScores,
+      ...RADAR_SELF_STYLE,
+    },
+    {
+      label: `上長評価（${userName}）`,
+      data: managerScores,
+      ...RADAR_MANAGER_STYLE,
+    },
+  ];
+  radarChart.update();
+  setRadarLegend(["self", "manager", "gap"]);
+
+  const diffs = CAPABILITIES.map((cap, i) => ({
+    name: cap.name,
+    self: selfScores[i],
+    manager: managerScores[i],
+    diff: Math.abs(selfScores[i] - managerScores[i]),
+  }));
+
+  // 自己評価平均・差分平均を追加（差分平均＝自己認識と他者評価のズレの大きさ。小さいほど客観視できている目安）
+  const selfAvgScore = Math.round(selfScores.reduce((a, b) => a + b, 0) / selfScores.length * 10) / 10;
+  const avgDiff = Math.round(diffs.reduce((sum, d) => sum + d.diff, 0) / diffs.length * 10) / 10;
+  document.querySelectorAll("#resultSummary .overlay-stat").forEach(el => el.remove());
+  document.getElementById("resultSummary").insertAdjacentHTML("beforeend", `
+    <div class="rs-item overlay-stat"><div class="rs-lbl">自己評価平均</div><div class="rs-val">${selfAvgScore.toFixed(1)}</div></div>
+    <div class="rs-item overlay-stat"><div class="rs-lbl">差分平均</div><div class="rs-val">${avgDiff.toFixed(1)}</div></div>
+  `);
+
+  // 能力別テーブルを「自己評価／上長評価／すり合わせポイント」の比較表に差し替え
+  document.getElementById("resultTableHead").innerHTML = `
+    <th style="width:40px;">区分</th>
+    <th>能力</th>
+    <th style="width:60px;">自己評価</th>
+    <th style="width:60px;">上長評価</th>
+    <th style="width:80px;">すり合わせポイント</th>
+  `;
+  document.getElementById("compareNote").style.display = "block";
+  let compareHTML = "";
+  diffs.forEach((d, i) => {
+    const cap = CAPABILITIES[i];
+    const typeTag = cap.type === "スキル"
+      ? `<span class="skill-tag tag-skill">スキル</span>`
+      : `<span class="skill-tag tag-stance">スタンス</span>`;
+    const dirLabel = d.diff === 0 ? "ほぼ一致" : (d.self > d.manager ? "自己が高め" : "上長が高め");
+    const rowClass = d.diff >= 1.0 ? ' class="diff-highlight"' : "";
+    compareHTML += `
+      <tr${rowClass}>
+        <td style="text-align:center;">${typeTag}</td>
+        <td class="cap-name" style="font-size:12px;">${cap.type === "スタンス" ? cap.name.replace(/（.*?）/g, "") : cap.name}</td>
+        <td class="score-cell">${d.self.toFixed(1)}</td>
+        <td class="score-cell">${d.manager.toFixed(1)}</td>
+        <td class="diff-cell"><span class="diff-num">${d.diff.toFixed(1)}</span><span class="diff-label">${dirLabel}</span></td>
+      </tr>`;
+  });
+  document.getElementById("resultTableBody").innerHTML = compareHTML;
+
+  // 「強み仮説／成長の余白」を上長評価・自己評価の2列で並べ、すり合わせしやすくする
+  const managerRanked = CAPABILITIES.map((cap, i) => ({ name: cap.name, score: managerScores[i] }))
+    .sort((a, b) => b.score - a.score);
+  const managerStrengthText = managerRanked.slice(0, 1)
+    .map(c => `・${c.name.replace(/（.*?）/g, "")}（${c.score.toFixed(1)}）`).join("<br>");
+  const managerGrowthText = managerRanked.slice(-1)
+    .map(c => `・${c.name.replace(/（.*?）/g, "")}（${c.score.toFixed(1)}）`).join("<br>");
+
+  const selfRanked = CAPABILITIES.map((cap, i) => ({ name: cap.name, score: selfScores[i] }))
+    .sort((a, b) => b.score - a.score);
+  const selfStrengthText = selfRanked.slice(0, 1)
+    .map(c => `・${c.name.replace(/（.*?）/g, "")}（${c.score.toFixed(1)}）`).join("<br>");
+  const selfGrowthText = selfRanked.slice(-1)
+    .map(c => `・${c.name.replace(/（.*?）/g, "")}（${c.score.toFixed(1)}）`).join("<br>");
+
+  document.getElementById("analysisBox").classList.add("compare");  // 上長と本人を並べるため、2枚を縦に積んで横幅を取る
+  document.getElementById("analysisBox").innerHTML = `
+    <div class="analysis-item">
+      <h4>強み仮説（上位1つ）</h4>
+      <div class="compare-cols">
+        <div class="compare-col compare-col-manager">
+          <div class="compare-col-label">上長評価</div>
+          <p class="one-line">${managerStrengthText}</p>
+        </div>
+        <div class="compare-col compare-col-self">
+          <div class="compare-col-label">自己評価</div>
+          <p class="one-line">${selfStrengthText}</p>
+        </div>
+      </div>
+    </div>
+    <div class="analysis-item">
+      <h4>成長の余白（下位1つ）</h4>
+      <div class="compare-cols">
+        <div class="compare-col compare-col-manager">
+          <div class="compare-col-label">上長評価</div>
+          <p class="one-line">${managerGrowthText}</p>
+        </div>
+        <div class="compare-col compare-col-self">
+          <div class="compare-col-label">自己評価</div>
+          <p class="one-line">${selfGrowthText}</p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// 本人の面談前メモ・個人目標を上長側に表示する（印刷時に一緒に出るように）
+function renderSelfInputDisplay(result) {
+  const box = document.getElementById("selfInputDisplay");
+  const comment = escapeHTML((result.comment || "").trim());
+  const goals = [
+    { cap: result.goal1_cap, text: result.goal1_text },
+    { cap: result.goal2_cap, text: result.goal2_text },
+  ].filter(g => g.cap || g.text);
+  const termGoal = escapeHTML((result.term_goal || "").trim());
+  const selfReflection = escapeHTML((result.self_reflection || "").trim());
+
+  let html = `<label style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;">`
+    + `<span>${escapeHTML(C.text.selfInputsTitle)}</span>`
+    + `<button type="button" onclick="refetchSelfInput()" style="font-size:11px;padding:4px 10px;border:1px solid #c0cfe8;border-radius:4px;background:#fff;cursor:pointer;" class="no-print">↻ 本人データを再取得</button>`
+    + `</label>`;
+  html += `<div style="margin-bottom:8px;">`
+    + `<div style="font-size:11px;font-weight:700;color:#1a3c5e;margin-bottom:2px;">${escapeHTML(C.text.commentTitle)}</div>`
+    + `<div style="font-size:12px;color:#333;line-height:1.6;">`
+    + (comment ? comment.replace(/\n/g, "<br>") : "（本人のメモはまだ書かれていません）")
+    + `</div></div>`;
+  if (goals.length) {
+    html += goals.map(g => `
+      <div style="margin-bottom:8px;">
+        <div style="font-size:11px;font-weight:700;color:#1a3c5e;margin-bottom:2px;">${escapeHTML(g.cap)}</div>
+        <div style="font-size:12px;color:#333;line-height:1.6;">${escapeHTML(g.text || "（未記入）").replace(/\n/g, "<br>")}</div>
+      </div>`).join("");
+  }
+  html += `
+    <div style="margin-bottom:8px;">
+      <div style="font-size:11px;font-weight:700;color:#1a3c5e;margin-bottom:2px;">${escapeHTML(C.text.termGoalTitle)}</div>
+      <div style="font-size:12px;color:#333;line-height:1.6;">${(termGoal || "（未記入）").replace(/\n/g, "<br>")}</div>
+    </div>
+    <div style="margin-bottom:8px;">
+      <div style="font-size:11px;font-weight:700;color:#1a3c5e;margin-bottom:2px;">${escapeHTML(C.text.reflectionTitle)}</div>
+      <div style="font-size:12px;color:#333;line-height:1.6;">${(selfReflection || "（未記入）").replace(/\n/g, "<br>")}</div>
+    </div>`;
+
+  // 面談画面・印刷時の最終資料でも：上長が自分の評価画面で書いた一言メモを必ず一緒に表示する
+  // （本人のメモと同じく、未記入でもその旨を表示し「出ていない」と誤解されないようにする）
+  const managerComment = escapeHTML((result.manager && result.manager.comment || "").trim());
+  if (isInterviewMode) {
+    html += `
+    <div class="manager-only" style="margin-top:14px;padding-top:10px;border-top:1px dashed #c0cfe8;">
+      <div style="font-size:11px;font-weight:700;color:#c0392b;margin-bottom:2px;">${escapeHTML(C.text.managerCommentTitle)}</div>
+      <div style="font-size:12px;color:#333;line-height:1.6;">${managerComment ? managerComment.replace(/\n/g, "<br>") : "（上長のメモはまだ書かれていません）"}</div>
+    </div>`;
+  }
+
+  box.innerHTML = html;
+  box.style.display = "block";
+}
+
+function buildManagerUrl(token, name) {
+  const base = window.location.href.split(/[?#]/)[0];
+  // target=氏名 は画面表示用の飾り。実際の認証・データ取得は token で行う
+  return `${base}?mode=manager&token=${encodeURIComponent(token)}&target=${encodeURIComponent(name)}`;
+}
+
+function showManagerUrlBox() {
+  const url = buildManagerUrl(selfToken, userName);
+  document.getElementById("managerUrlText").value = url;
+  document.getElementById("managerUrlBox").style.display = "block";
+}
+
+function copyManagerUrl() {
+  const input = document.getElementById("managerUrlText");
+  navigator.clipboard.writeText(input.value).then(() => {
+    const btn = document.getElementById("copyUrlBtn");
+    btn.textContent = "✓ コピーしました";
+    setTimeout(() => { btn.textContent = "コピー"; }, 2000);
+  });
+}
+
+// ─────────────────────────────────────────
+// 面談用URL（上長評価モードから発行。同じトークンを使い続ける）
+// ─────────────────────────────────────────
+function buildInterviewUrl(token, name) {
+  const base = window.location.href.split(/[?#]/)[0];
+  return `${base}?mode=interview&token=${encodeURIComponent(token)}&target=${encodeURIComponent(name)}`;
+}
+
+function showInterviewUrlBox() {
+  const url = buildInterviewUrl(urlToken, targetName);
+  document.getElementById("interviewUrlText").value = url;
+  document.getElementById("interviewUrlBox").style.display = "block";
+  if (DEMO_MODE) document.getElementById("demoInterviewOpen").style.display = "block";
+}
+
+function copyInterviewUrl() {
+  const input = document.getElementById("interviewUrlText");
+  navigator.clipboard.writeText(input.value).then(() => {
+    const btn = document.getElementById("copyInterviewUrlBtn");
+    btn.textContent = "✓ コピーしました";
+    setTimeout(() => { btn.textContent = "コピー"; }, 2000);
+  });
+}
+
+// 面談用URL画面：本人・上長・面談メモをまとめてトークンで取得して表示する
+function loadInterviewView() {
+  showStep(3);
+  document.getElementById("progressFill").style.width = "100%";
+  document.getElementById("stepLabel").textContent = "面談記録";
+  document.getElementById("appTitle").textContent = C.interviewAppName;
+  document.getElementById("resultName").textContent = "データを読み込んでいます…";
+  document.getElementById("resultMeta").textContent = "";
+  document.getElementById("printBtns").style.display = "flex";
+  document.getElementById("resetBtn").style.display = "none";  // 面談画面では本人用の入力画面へ戻らせない
+
+  const statusEl = document.getElementById("sendStatus");
+  const cbName = "gasCallback_" + Date.now();
+
+  const timer = setTimeout(() => {
+    window[cbName] = null;
+    document.getElementById("resultName").textContent = "データが見つかりません";
+    statusEl.className = "send-status err";
+    statusEl.textContent = "このURLに対応する自己評価が見つかりませんでした。URLが正しいかご確認ください。";
+  }, 8000);
+
+  window[cbName] = function(result) {
+    clearTimeout(timer);
+    window[cbName] = null;
+    document.getElementById("jsonpInterviewScript")?.remove();
+
+    if (result.status !== "ok") {
+      document.getElementById("resultName").textContent = "データが見つかりません";
+      statusEl.className = "send-status err";
+      statusEl.textContent = "このURLに対応する自己評価が見つかりませんでした。URLが正しいかご確認ください。";
+      return;
+    }
+
+    targetName = result.name || targetName;
+    interviewSelfScores = result.scores;
+
+    document.getElementById("resultName").textContent = `${targetName} さんの面談記録`;
+    document.getElementById("resultMeta").textContent = `面談日：${new Date().toLocaleDateString("ja-JP")}`;
+    document.title = `${targetName}_面談記録`;
+
+    // レーダーチャートはまだ存在しない（クイズを経由していないため）ので、まず空の状態で作る
+    if (radarChart) radarChart.destroy();
+    const ctx = document.getElementById("radarChart").getContext("2d");
+    radarChart = new Chart(ctx, {
+      type: "radar",
+      data: { labels: radarLabels(), datasets: [] },
+      options: radarOptions(),
+    });
+
+    if (result.manager) {
+      userName = result.manager.name || userName;
+      document.getElementById("resultSummary").innerHTML = "";
+      overlayManagerChart(result.manager.scores, result.scores);
+    } else {
+      document.getElementById("resultSummary").innerHTML = `
+        <div class="rs-item overlay-stat"><div class="rs-lbl">自己評価平均</div><div class="rs-val j-ok">${(Math.round(result.scores.reduce((a,b)=>a+b,0)/result.scores.length*10)/10).toFixed(1)}</div></div>
+      `;
+      radarChart.data.datasets = [{
+        label: `自己評価（${targetName}）`,
+        data: result.scores,
+        ...RADAR_SELF_STYLE,
+      }];
+      radarChart.update();
+      setRadarLegend(["self"]);
+    }
+
+    renderSelfInputDisplay(result);
+
+    const memoBox = document.getElementById("interviewMemoBox");
+    const goalBox = document.getElementById("nextTermGoalBox");
+    const notesBox = document.getElementById("interviewNotesBox");
+    if (memoBox) { memoBox.value = result.interview_memo || ""; lastSentInterviewMemo = memoBox.value; }
+    if (goalBox) { goalBox.value = result.next_term_goal || ""; lastSentNextTermGoal = goalBox.value; }
+    if (notesBox) { notesBox.value = result.interview_notes || ""; lastSentInterviewNotes = notesBox.value; }
+    document.getElementById("interviewFieldsArea").style.display = "block";
+
+    interviewContextLoaded = true;
+    statusEl.className = "send-status";
+    statusEl.textContent = "";
+  };
+
+  requestRecord("getInterviewData", {token:urlToken}, cbName, "jsonpInterviewScript");
+}
+
+// 印刷時：ブラウザの印刷エンジンによってはCSSのコンテナサイズ変化を
+// resize()が正しく追従しない（Safari等で崩れが再発する）ため、
+// 印刷直前に明示的なサイズ（横長 560×300px＝項目名を全文で出すため）を指定して強制的に描き直す。
+// 画面に戻すafterprintでは引数なしresize()で自動サイズに戻す。
+window.addEventListener("beforeprint", () => { if (radarChart) radarChart.resize(560, 300); });
+window.addEventListener("afterprint",  () => { if (radarChart) radarChart.resize(); });
+
+function openDemoMode(mode) {
+  if (!DEMO_MODE) return;
+  // 同じタブで開き、localStorageが使える同じファイルから一周する。
+  clearTimeout(autosaveDebounceTimer);
+  submitted = false;
+  postRecord(currentDemoPayload()).then(() => {
+    location.href = mode === "manager" ? buildManagerUrl(selfToken, userName) : buildInterviewUrl(urlToken, targetName);
+  }).catch(e => { document.getElementById("sendStatus").textContent = e.message; });
+}
+function currentDemoPayload() {
+  return {timestamp:new Date().toISOString(),name:userName,dept:userDept,grade:userGrade,
+    token:isManagerMode ? urlToken : selfToken, type:isManagerMode ? "manager" : "self",
+    scores:calcScores(),comment:document.getElementById("commentBox").value,
+    term_goal:document.getElementById("termGoalBox").value,
+    self_reflection:document.getElementById("selfReflectionBox").value,
+    goal1_cap:goalCaps[0]||"",goal1_text:goalTexts[0]||""};
+}
+// 初期化
+applyCompany();
+initFromURL();
+</script>
+</body>
+</html>
